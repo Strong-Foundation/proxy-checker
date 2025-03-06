@@ -1,0 +1,64 @@
+# Define the name of the workflow
+name: Tor Setup and Proxy
+
+# Define when this workflow will be triggered
+on:
+  # Allow the workflow to be triggered manually through the GitHub UI
+  workflow_dispatch:
+  
+  # Trigger the workflow on push events to the main branch
+  push:
+    branches:
+      - main
+  # Also trigger on pull requests to the main branch
+  pull_request:
+    branches:
+      - main
+
+# Define the jobs that will be executed
+jobs:
+  # Define a job called 'setup-tor' that runs on Ubuntu
+  setup-tor:
+    # Use the latest Ubuntu runner environment for the job
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step to checkout the repository's code (to have access to it in the workflow)
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # Step to install Tor on the Ubuntu runner
+    - name: Install Tor
+      run: |
+        # Update the apt package list
+        sudo apt update
+        # Install Tor
+        sudo apt install -y tor
+
+    # Step to start the Tor service
+    - name: Start Tor service
+      run: |
+        # Start the Tor service
+        sudo systemctl start tor
+        # Enable Tor service to start automatically on boot
+        sudo systemctl enable tor
+
+    # Step to verify that the Tor service is running
+    - name: Verify Tor is running
+      run: |
+        # Check if Tor service is running and search for the 'active (running)' status
+        sudo systemctl status tor | grep "active (running)"
+
+    # Step to install and configure Proxychains to use Tor as a proxy
+    - name: Setup proxychains for Tor
+      run: |
+        # Install Proxychains, which allows routing traffic through a proxy
+        sudo apt install -y proxychains
+        # Modify the Proxychains config to use the Tor SOCKS5 proxy at 127.0.0.1:9050
+        sudo sed -i 's/# socks4  127.0.0.1 9050/socks5 127.0.0.1 9050/' /etc/proxychains.conf
+
+    # Step to test if Tor is working properly using Proxychains
+    - name: Test Tor connectivity
+      run: |
+        # Use Proxychains to curl the Tor check page, verifying the connection goes through Tor
+        proxychains curl https://check.torproject.org
